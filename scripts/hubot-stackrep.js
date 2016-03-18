@@ -1,5 +1,5 @@
 // Description:
-//   holiday detector script
+//   StackOverflow reputation notifier
 //
 // Dependencies:
 //   None
@@ -8,8 +8,8 @@
 //   None
 //
 // Commands:
-//   hubot is it weekend ?  - returns whether is it weekend or not
-//   hubot is it holiday ?  - returns whether is it holiday or not
+//   hubot getrep  - returns the SO reputation for fguchelaar
+//   hubot getrep [id] - returns the SO reputation for user with id
 
 var CronJob = require('cron').CronJob;
 var https = require('https');
