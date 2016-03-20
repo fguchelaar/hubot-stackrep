@@ -1,4 +1,3 @@
-## Script?
+## hubot-stackrep
 
-ok, so this code is currently created as a script wihtin the `script` folder. It eventually needs to be
-converted to an actual hubot-plugin, but for now this works for me :-/
+A plugin for hubot that can _(current status: will be able to)_ notify you about changes in your StackOverflow reputation.
