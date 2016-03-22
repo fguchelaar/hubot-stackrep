@@ -31,7 +31,7 @@ module.exports = function (robot) {
 
   new CronJob('0 */5 * * * *',
     function () {
-      var room = '#slackrep';
+      var room = '#stackrep';
       var stackrepData = robot.brain.get('hubot-stackrep-data');
       var key;
       robot.logger.info(stackrepData);
