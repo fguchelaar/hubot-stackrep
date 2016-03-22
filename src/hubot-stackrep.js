@@ -2,7 +2,7 @@
 //   StackOverflow reputation notifier
 //
 // Dependencies:
-//   None
+//   cron
 //
 // Configuration:
 //   None
@@ -10,45 +10,45 @@
 // Commands:
 //   hubot getrep  - returns the SO reputation for fguchelaar
 //   hubot getrep [id] - returns the SO reputation for user with id
+
 var CronJob = require('cron').CronJob;
 var https = require('https');
 var zlib = require('zlib');
 
 module.exports = function (robot) {
-  // new CronJob('* * * * * *',
-  //     function() {
-  //
-  //         var room = '#slackrep';
-  //
-  //         robot.logger.info('Awesomation FTW!');
-  //         robot.messageRoom(room, 'I will nag you every second');
-  //     },
-  //     null,
-  //     true,
-  //     'America/Los_Angeles');
-
-  // room = '#random'
-  //
-  // workdaysNineAm = ->
-  //     robot.emit 'slave:comand', 'wake everyone up', room
-  //
-  // everyFiveMinutes = ->
-  //     robot.logger.debug 'I will nag you every minute'
-  // robot.messageRoom room, 'I will nag you every minute'
-  //
-  robot.respond(/getrep.?(\d*)?/i, function (msg) {
-    var soId = msg.match[1];
-    robot.logger.info('getting reputation');
-
-    if (soId === undefined) {
-      soId = '964961';
+  robot.brain.set('hubot-stackrep-data', {
+    '964961' : {
+      soId: '964961',
+      soName: 'fguchelaar',
+      lastChangeDate: 1458171985
+    },
+    '1973271' : {
+      soId: '1973271',
+      soName: 'flup',
+      lastChangeDate: 1458171985
     }
+  });
 
-    msg.send('Getting reputation for ' + soId);
+  new CronJob('0 */5 * * * *',
+    function () {
+      var room = '#slackrep';
+      var stackrepData = robot.brain.get('hubot-stackrep-data');
+      var key;
+      robot.logger.info(stackrepData);
 
+      for (key in stackrepData) {
+        robot.logger.info(key);
+        getReputation(stackrepData[key], null, room);
+      }
+    },
+    null,
+    true,
+    'America/Los_Angeles');
+
+  function getReputation(userData, msg, room) {
     var options = {
       host: 'api.stackexchange.com',
-      path: '/2.2/users/' + soId + '/reputation-history?site=stackoverflow'
+      path: '/2.2/users/' + userData.soId + '/reputation-history?site=stackoverflow'
     };
 
     https.get(options, function (res) {
@@ -62,34 +62,67 @@ module.exports = function (robot) {
         var json = JSON.parse(output);
         var i;
         var change;
+        var message;
+        var stackrepData = robot.brain.get('hubot-stackrep-data');
 
-        for (i = 5; i >= 0; i--) {
+        for (i = json.items.length - 1; i >= 0; i--) {
+          if (json.items[i].creation_date <= userData.lastChangeDate) {
+            continue;
+          }
+
           change = json.items[i].reputation_change;
 
           switch (json.items[i].reputation_history_type) {
             case 'post_upvoted':
-              msg.send('A post was upvoted and you have gained ' + change + ' reputation. http://www.stackoverflow.com/questions/' + json.items[i].post_id);
+              message = 'A post was upvoted and ' + userData.soName + ' has gained ' + change + ' reputation. http://www.stackoverflow.com/questions/' + json.items[i].post_id;
               break;
             case 'answer_accepted':
-              msg.send('An answer was accepted and you have gained ' + change + ' reputation. http://www.stackoverflow.com/questions/' + json.items[i].post_id);
+              message = 'An answer was accepted and ' + userData.soName + ' has gained ' + change + ' reputation. http://www.stackoverflow.com/questions/' + json.items[i].post_id;
               break;
             case 'post_unupvoted':
-              msg.send('An upvote was undone and you have lost ' + change + ' reputation. http://www.stackoverflow.com/questions/' + json.items[i].post_id);
+              message = 'An upvote was undone and ' + userData.soName + ' has lost ' + change + ' reputation. http://www.stackoverflow.com/questions/' + json.items[i].post_id;
               break;
             case 'post_undownvoted':
-              msg.send('Yikes, a post was downvoted and you have lost ' + change + ' reputation. http://www.stackoverflow.com/questions/' + json.items[i].post_id);
+              message = 'Yikes, a post was downvoted and ' + userData.soName + ' has lost ' + change + ' reputation. http://www.stackoverflow.com/questions/' + json.items[i].post_id;
               break;
             case 'post_downvoted':
-              msg.send('Pfew, a downvote was undone and you have gained ' + change + ' reputation. http://www.stackoverflow.com/questions/' + json.items[i].post_id);
+              message = 'Pfew, a downvote was undone and ' + userData.soName + ' has gained ' + change + ' reputation. http://www.stackoverflow.com/questions/' + json.items[i].post_id;
               break;
             default:
-              msg.send('you have gained ' + change + ' reputation. http://www.stackoverflow.com/questions/' + json.items[i].post_id);
+              message = '' + userData.soName + ' has gained ' + change + ' reputation. http://www.stackoverflow.com/questions/' + json.items[i].post_id;
+          }
+          if (msg) {
+            msg.send(message);
+          }
+          if (room) {
+            robot.messageRoom(room, message);
           }
         }
 
-        msg.send('Latest change: ' + robot.brain.get('964961_latest_reputation_change_date'));
-        robot.brain.set('964961_latest_reputation_change_date', json.items[0].creation_date);
+        stackrepData[userData.soId].lastChangeDate = json.items[0].creation_date;
+        robot.brain.set('hubot-stackrep-data', stackrepData);
       });
     });
+  }
+
+  robot.respond(/getrep.?(\d*)?/i, function (msg) {
+    var stackrepData = robot.brain.get('hubot-stackrep-data');
+    var soId = msg.match[1];
+    var userData;
+
+    robot.logger.info('getting reputation');
+
+    if (soId === undefined) {
+      soId = '964961';
+    }
+
+    // find the data
+    userData = stackrepData[soId];
+    robot.logger.info(userData);
+    if (userData === undefined) {
+      robot.logger.info('No userdata found for ' + soId);
+    } else {
+      getReputation(userData, msg);
+    }
   });
 };
