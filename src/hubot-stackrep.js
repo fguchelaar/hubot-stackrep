@@ -16,18 +16,18 @@ var https = require('https');
 var zlib = require('zlib');
 
 module.exports = function (robot) {
-  robot.brain.set('hubot-stackrep-data', {
-    '964961' : {
-      soId: '964961',
-      soName: 'fguchelaar',
-      lastChangeDate: 1458171985
-    },
-    '1973271' : {
-      soId: '1973271',
-      soName: 'flup',
-      lastChangeDate: 1458171985
-    }
-  });
+  // robot.brain.set('hubot-stackrep-data', {
+  //   '964961' : {
+  //     soId: '964961',
+  //     soName: 'fguchelaar',
+  //     lastChangeDate: 1458171985
+  //   },
+  //   '1973271' : {
+  //     soId: '1973271',
+  //     soName: 'flup',
+  //     lastChangeDate: 1458171985
+  //   }
+  // });
 
   new CronJob('0 */5 * * * *',
     function () {
